@@ -20,6 +20,9 @@ import 'package:native_toolchain_rust/native_toolchain_rust.dart';
 void main(List<String> arguments) async {
   await build(arguments, (input, output) async {
     if (!input.config.buildCodeAssets) return;
+    // Federated plugins remain in every target's package graph. WPE is only
+    // available on Linux; other hosts use their own WebView implementation.
+    if (input.config.code.targetOS != OS.linux) return;
 
     final rustDirectory = Directory.fromUri(input.packageRoot.resolve('rust/'));
     output.dependencies.addAll([
@@ -45,17 +48,11 @@ void main(List<String> arguments) async {
         'Could not load native_prebuilt.yaml from ${input.packageRoot}.',
       );
     }
-    // Published applications prefer the verified release artifact. A Git
-    // checkout must compile its local Rust tree, otherwise an edited package
-    // can silently keep running the previous release binary. Source archives
-    // without Git metadata can opt into the same behavior explicitly.
-    final checkoutMarker = input.packageRoot.resolve('.git').toFilePath();
-    final isGitCheckout =
-        FileSystemEntity.typeSync(checkoutMarker, followLinks: false) !=
-        FileSystemEntityType.notFound;
-    if (isGitCheckout ||
-        Platform.environment['WEBVIEW_FLUTTER_LINUX_FORCE_SOURCE_BUILD'] ==
-            '1') {
+    // This fork changes Dart build routing only. Its Rust sources are identical
+    // to dev.2, so retain the checksummed upstream Linux binary. Native edits
+    // must force a source build or publish a new checksummed artifact.
+    if (Platform.environment['WEBVIEW_FLUTTER_LINUX_FORCE_SOURCE_BUILD'] ==
+        '1') {
       project = project.copyWith(
         prebuiltPolicy: PrebuiltPolicy.forceSourceBuild,
       );
