@@ -17,9 +17,12 @@ import 'package:native_toolchain_rust/native_toolchain_rust.dart';
 /// follow Rust changes. When an unpacked development WPE SDK exists under
 /// `third_party`, its pkg-config metadata and libraries take precedence;
 /// release consumers otherwise resolve WPE from their system toolchain.
-void main(List<String> arguments) async {
+Future<void> main(List<String> arguments) async {
   await build(arguments, (input, output) async {
     if (!input.config.buildCodeAssets) return;
+    // Hooks run for all consumers, even though this plugin implements Linux.
+    // Inspect the build target, not the host running a cross-platform build.
+    if (input.config.code.targetOS != OS.linux) return;
 
     final rustDirectory = Directory.fromUri(input.packageRoot.resolve('rust/'));
     output.dependencies.addAll([
